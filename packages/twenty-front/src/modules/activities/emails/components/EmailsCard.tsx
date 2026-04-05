@@ -1,8 +1,10 @@
 import { styled } from '@linaria/react';
+import { useState, useMemo } from 'react';
 
 import { ActivityList } from '@/activities/components/ActivityList';
 import { CustomResolverFetchMoreLoader } from '@/activities/components/CustomResolverFetchMoreLoader';
 import { SkeletonLoader } from '@/activities/components/SkeletonLoader';
+import { ComposeEmailModal } from '@/activities/emails/components/ComposeEmailModal';
 import { EmailThreadPreview } from '@/activities/emails/components/EmailThreadPreview';
 import { TIMELINE_THREADS_DEFAULT_PAGE_SIZE } from '@/activities/emails/constants/Messaging';
 import { getTimelineThreadsFromCompanyId } from '@/activities/emails/graphql/queries/getTimelineThreadsFromCompanyId';
@@ -49,7 +51,29 @@ const StyledEmailCount = styled.span`
   color: ${themeCssVariables.font.color.light};
 `;
 
+const StyledComposeButton = styled.button`
+  padding: ${themeCssVariables.spacing[1]} ${themeCssVariables.spacing[3]};
+  border-radius: ${themeCssVariables.border.radius.sm};
+  border: 1px solid ${themeCssVariables.border.color.medium};
+  background: ${themeCssVariables.background.primary};
+  color: ${themeCssVariables.font.color.primary};
+  font-size: ${themeCssVariables.font.size.sm};
+  font-weight: ${themeCssVariables.font.weight.medium};
+  cursor: pointer;
+
+  &:hover {
+    background: ${themeCssVariables.background.tertiary};
+  }
+`;
+
+const StyledHeaderRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
 export const EmailsCard = () => {
+  const [isComposeOpen, setIsComposeOpen] = useState(false);
   const targetRecord = useTargetRecord();
 
   const [query, queryName] =
@@ -87,39 +111,66 @@ export const EmailsCard = () => {
     return <SkeletonLoader />;
   }
 
+  const defaultTo = useMemo(() => {
+    const record = targetRecord?.targetRecord;
+
+    if (!record) return '';
+
+    if (record.emails?.primaryEmail) return record.emails.primaryEmail;
+
+    return '';
+  }, [targetRecord]);
+
   if (!firstQueryLoading && !timelineThreads?.length) {
     return (
-      <AnimatedPlaceholderEmptyContainer
-        // oxlint-disable-next-line react/jsx-props-no-spreading
-        {...EMPTY_PLACEHOLDER_TRANSITION_PROPS}
-      >
-        <AnimatedPlaceholder type="emptyInbox" />
-        <AnimatedPlaceholderEmptyTextContainer>
-          <AnimatedPlaceholderEmptyTitle>
-            <Trans>Empty Inbox</Trans>
-          </AnimatedPlaceholderEmptyTitle>
-          <AnimatedPlaceholderEmptySubTitle>
-            <Trans>No email exchange has occurred with this record yet.</Trans>
-          </AnimatedPlaceholderEmptySubTitle>
-        </AnimatedPlaceholderEmptyTextContainer>
-      </AnimatedPlaceholderEmptyContainer>
+      <>
+        <AnimatedPlaceholderEmptyContainer
+          // oxlint-disable-next-line react/jsx-props-no-spreading
+          {...EMPTY_PLACEHOLDER_TRANSITION_PROPS}
+        >
+          <AnimatedPlaceholder type="emptyInbox" />
+          <AnimatedPlaceholderEmptyTextContainer>
+            <AnimatedPlaceholderEmptyTitle>
+              <Trans>Empty Inbox</Trans>
+            </AnimatedPlaceholderEmptyTitle>
+            <AnimatedPlaceholderEmptySubTitle>
+              <Trans>
+                No email exchange has occurred with this record yet.
+              </Trans>
+            </AnimatedPlaceholderEmptySubTitle>
+          </AnimatedPlaceholderEmptyTextContainer>
+          <StyledComposeButton onClick={() => setIsComposeOpen(true)}>
+            <Trans>Compose Email</Trans>
+          </StyledComposeButton>
+        </AnimatedPlaceholderEmptyContainer>
+        <ComposeEmailModal
+          isOpen={isComposeOpen}
+          onClose={() => setIsComposeOpen(false)}
+          defaultTo={defaultTo}
+        />
+      </>
     );
   }
 
   return (
     <StyledContainer>
       <Section>
-        <StyledH1TitleWrapper>
-          <H1Title
-            title={
-              <>
-                <Trans>Inbox</Trans>{' '}
-                <StyledEmailCount>{totalNumberOfThreads}</StyledEmailCount>
-              </>
-            }
-            fontColor={H1TitleFontColor.Primary}
-          />
-        </StyledH1TitleWrapper>
+        <StyledHeaderRow>
+          <StyledH1TitleWrapper>
+            <H1Title
+              title={
+                <>
+                  <Trans>Inbox</Trans>{' '}
+                  <StyledEmailCount>{totalNumberOfThreads}</StyledEmailCount>
+                </>
+              }
+              fontColor={H1TitleFontColor.Primary}
+            />
+          </StyledH1TitleWrapper>
+          <StyledComposeButton onClick={() => setIsComposeOpen(true)}>
+            <Trans>Compose</Trans>
+          </StyledComposeButton>
+        </StyledHeaderRow>
         {!firstQueryLoading && (
           <ActivityList>
             {timelineThreads?.map((thread: TimelineThread) => (
@@ -132,6 +183,11 @@ export const EmailsCard = () => {
           onLastRowVisible={handleLastRowVisible}
         />
       </Section>
+      <ComposeEmailModal
+        isOpen={isComposeOpen}
+        onClose={() => setIsComposeOpen(false)}
+        defaultTo={defaultTo}
+      />
     </StyledContainer>
   );
 };
